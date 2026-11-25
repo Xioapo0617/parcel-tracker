@@ -168,27 +168,42 @@
       }, 2800);
     }
 
-    // 點擊單號：同步開啟官方查詢頁並複製單號到剪貼簿
+    // 先將單號寫入剪貼簿，再開啟官方查詢頁
+    async function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (e) {}
+      }
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      let ok = false;
+      try {
+        ok = document.execCommand('copy');
+      } catch (e) {
+        ok = false;
+      }
+      document.body.removeChild(textarea);
+      return ok;
+    }
+
     async function copyAndOpen(code, carrierKey) {
+      const copied = await copyText(code);
+      showToast(copied ? `已複製單號 ${code}` : `單號：${code}（請手動複製）`);
+
       const carrier = CARRIERS[carrierKey] || CARRIERS.other;
       const targetUrl = carrierKey === 'other' ? `${carrier.url}${encodeURIComponent(code)}` : carrier.url;
 
       const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
       if (!win) {
         window.location.href = targetUrl;
-      }
-
-      try {
-        await navigator.clipboard.writeText(code);
-        showToast(`已複製單號 ${code}`);
-      } catch (err) {
-        const input = document.createElement('input');
-        input.value = code;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-        showToast(`已複製單號 ${code}`);
       }
     }
 
