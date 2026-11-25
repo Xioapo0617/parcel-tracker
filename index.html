@@ -139,12 +139,12 @@
     // 單號規則自動辨識邏輯
     function detectCarrier(code) {
       const clean = code.trim().toUpperCase();
-      if (/^TW\d{10,14}[A-Z0-9]*$/.test(clean)) return 'shopee'; // 蝦皮店到店常以 TW 開頭
-      if (/^[A-Z]\d{11}$/.test(clean) || /^[0-9]{12}$/.test(clean) && clean.startsWith('7')) return '711'; // 7-11 交貨便常見格式
-      if (/^(0|1|2)\d{10}$/.test(clean) || /^FM/.test(clean)) return 'family'; // 全家店到店常見 11 碼數字
-      if (/^(6|8|9)\d{9,11}$/.test(clean)) return 'tcat'; // 黑貓常見 10 或 12 碼數字
-      if (/^\d{10}$/.test(clean)) return 'hct'; // 新竹物流常見 10 碼純數字
-      if (/^\d{14,20}$/.test(clean)) return 'post'; // 郵局掛號/包裹常見 14~20 碼
+      if (/^TW\d{10,14}[A-Z0-9]*$/.test(clean)) return 'shopee';
+      if (/^[A-Z]\d{11}$/.test(clean) || (/^[0-9]{12}$/.test(clean) && clean.startsWith('7'))) return '711';
+      if (/^(0|1|2)\d{10}$/.test(clean) || /^FM/.test(clean)) return 'family';
+      if (/^(6|8|9)\d{9,11}$/.test(clean)) return 'tcat';
+      if (/^\d{10}$/.test(clean)) return 'hct';
+      if (/^\d{14,20}$/.test(clean)) return 'post';
       return 'other';
     }
 
@@ -168,27 +168,28 @@
       }, 2800);
     }
 
-    // 點擊單號：複製到剪貼簿並開啟對應物流官網
+    // 點擊單號：同步開啟官方查詢頁並複製單號到剪貼簿
     async function copyAndOpen(code, carrierKey) {
+      const carrier = CARRIERS[carrierKey] || CARRIERS.other;
+      const targetUrl = carrierKey === 'other' ? `${carrier.url}${encodeURIComponent(code)}` : carrier.url;
+
+      const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      if (!win) {
+        window.location.href = targetUrl;
+      }
+
       try {
         await navigator.clipboard.writeText(code);
-        showToast(`已複製單號 ${code}，正在開啟官網...`);
+        showToast(`已複製單號 ${code}`);
       } catch (err) {
-        // 備用複製機制
         const input = document.createElement('input');
         input.value = code;
         document.body.appendChild(input);
         input.select();
         document.execCommand('copy');
         document.body.removeChild(input);
-        showToast(`已複製單號 ${code}，正在開啟官網...`);
+        showToast(`已複製單號 ${code}`);
       }
-
-      const carrier = CARRIERS[carrierKey] || CARRIERS.other;
-      const targetUrl = carrierKey === 'other' ? `${carrier.url}${encodeURIComponent(code)}` : carrier.url;
-      setTimeout(() => {
-        window.open(targetUrl, '_blank', 'noopener,noreferrer');
-      }, 350);
     }
 
     function toggleStatus(id) {
@@ -238,7 +239,7 @@
         code: rawCode,
         name: name,
         carrier: carrier,
-        status: 'shipping', // shipping | arrived
+        status: 'shipping',
         completed: false,
         createdAt: new Date().toLocaleDateString('zh-TW')
       });
@@ -290,12 +291,10 @@
       const activeItems = packages.filter(p => !p.completed);
       const completedItems = packages.filter(p => p.completed);
 
-      // 更新頂部數據
       document.getElementById('count-arrived').textContent = activeItems.filter(p => p.status === 'arrived').length;
       document.getElementById('count-shipping').textContent = activeItems.filter(p => p.status === 'shipping').length;
       document.getElementById('count-completed').textContent = completedItems.length;
 
-      // 渲染分類頁籤
       const filterContainer = document.getElementById('filter-tabs');
       const usedCarriers = ['ALL', ...Object.keys(CARRIERS).filter(k => activeItems.some(p => p.carrier === k))];
       filterContainer.innerHTML = usedCarriers.map(key => {
@@ -304,7 +303,6 @@
         return `<button onclick="currentFilter='${key}';render()" class="whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-medium transition ${isActive ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'}">${label}</button>`;
       }).join('');
 
-      // 依物流分組渲染進行中包裹
       const activeContainer = document.getElementById('active-list');
       const filtered = currentFilter === 'ALL' ? activeItems : activeItems.filter(p => p.carrier === currentFilter);
 
@@ -362,7 +360,6 @@
         }).join('');
       }
 
-      // 渲染已領取歷史紀錄
       const completedContainer = document.getElementById('completed-list');
       completedContainer.innerHTML = completedItems.map(item => `
         <div class="bg-slate-100/80 px-4 py-2.5 rounded-xl flex items-center justify-between text-xs text-slate-500">
