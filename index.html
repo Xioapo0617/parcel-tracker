@@ -97,7 +97,6 @@
   <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-full shadow-lg hidden z-50"></div>
 
   <script>
-    // 各大物流設定與官方查詢網址
     const CARRIERS = {
       '711': {
         name: '7-11 交貨便',
@@ -136,7 +135,6 @@
       }
     };
 
-    // 單號規則自動辨識邏輯
     function detectCarrier(code) {
       const clean = code.trim().toUpperCase();
       if (/^TW\d{10,14}[A-Z0-9]*$/.test(clean)) return 'shopee';
@@ -168,35 +166,34 @@
       }, 2800);
     }
 
-    // 先將單號寫入剪貼簿，再開啟官方查詢頁
-    async function copyText(text) {
-      if (navigator.clipboard && window.isSecureContext) {
-        try {
-          await navigator.clipboard.writeText(text);
-          return true;
-        } catch (e) {}
-      }
+    function copyTextSync(text) {
+      let ok = false;
       const textarea = document.createElement('textarea');
       textarea.value = text;
       textarea.setAttribute('readonly', '');
       textarea.style.position = 'fixed';
+      textarea.style.top = '0';
+      textarea.style.left = '0';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
       textarea.focus();
       textarea.select();
-      let ok = false;
       try {
         ok = document.execCommand('copy');
       } catch (e) {
         ok = false;
       }
       document.body.removeChild(textarea);
+
+      if (!ok && navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
       return ok;
     }
 
-    async function copyAndOpen(code, carrierKey) {
-      const copied = await copyText(code);
-      showToast(copied ? `已複製單號 ${code}` : `單號：${code}（請手動複製）`);
+    function copyAndOpen(code, carrierKey) {
+      const copied = copyTextSync(code);
+      showToast(copied ? `已複製單號 ${code}` : `嘗試複製 ${code}，正在開啟官網...`);
 
       const carrier = CARRIERS[carrierKey] || CARRIERS.other;
       const targetUrl = carrierKey === 'other' ? `${carrier.url}${encodeURIComponent(code)}` : carrier.url;
@@ -238,7 +235,6 @@
       savePackages();
     }
 
-    // 表單送出處理
     document.getElementById('add-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const rawCode = document.getElementById('tracking-input').value.trim();
@@ -266,7 +262,6 @@
       showToast(`已新增至「${CARRIERS[carrier].name}」`);
     });
 
-    // 支援網址參數直接新增（供 iOS 捷徑呼叫：?add=單號&name=品項）
     function checkUrlParams() {
       const params = new URLSearchParams(window.location.search);
       const addCode = params.get('add');
@@ -288,7 +283,6 @@
       }
     }
 
-    // 切換已領取紀錄顯示
     document.getElementById('toggle-completed').addEventListener('click', () => {
       showCompleted = !showCompleted;
       document.getElementById('completed-list').classList.toggle('hidden', !showCompleted);
